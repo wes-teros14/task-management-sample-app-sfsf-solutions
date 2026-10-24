@@ -4,8 +4,10 @@ applications:
 - name: task-management
   instances: 1
   memory: 896M
-  buildpacks: 
-    - sap_java_buildpack
+  buildpacks:
+    - java_buildpack
+  env:
+    JBP_CONFIG_OPEN_JDK_JRE: '{ jre: { version: 11.+ } }'
   routes:
     - route: task-management-((ID)).cfapps.((REGION_HOST))
   path: task-management-app/target/task-management-app.jar

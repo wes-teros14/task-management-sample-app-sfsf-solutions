@@ -1,0 +1,194 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Next POC Options</title>
+<style>
+  :root {
+    --bg: #fafaf8; --fg: #1d1d1b; --muted: #66665f; --line: #c9c9c0;
+    --card: #ffffff; --accent: #0a6ed1; --accent-soft: #e6f1fb;
+    --sf: #b8540b; --sf-soft: #fbeee3; --svc: #2f7d4f; --svc-soft: #e5f3ea;
+    --new: #8a3ffc; --new-soft: #f1eafe; --code-bg: #f1f1ec;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #17181a; --fg: #e8e8e3; --muted: #a0a097; --line: #3d3e42;
+      --card: #202124; --accent: #5aa9f0; --accent-soft: #1b2c3d;
+      --sf: #f0a060; --sf-soft: #3a2817; --svc: #6cc792; --svc-soft: #193324;
+      --new: #b48cff; --new-soft: #2a1f40; --code-bg: #2a2b2e;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--fg); font: 15px/1.6 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  main { max-width: 1040px; margin: 0 auto; padding: 32px 16px 64px; }
+  h1 { font-size: 26px; margin: 0 0 4px; }
+  h2 { font-size: 21px; margin: 48px 0 6px; padding-top: 12px; border-top: 2px solid var(--line); }
+  h3 { font-size: 16px; margin: 26px 0 8px; }
+  p.lede { color: var(--muted); margin: 0 0 12px; max-width: 75ch; }
+  svg { width: 100%; height: auto; display: block; margin: 8px 0; }
+  .box { fill: var(--card); stroke: var(--line); stroke-width: 1.5; }
+  .box.ours { stroke: var(--accent); fill: var(--accent-soft); }
+  .box.sf { stroke: var(--sf); fill: var(--sf-soft); }
+  .box.svc { stroke: var(--svc); fill: var(--svc-soft); }
+  .box.new { stroke: var(--new); fill: var(--new-soft); stroke-width: 2; }
+  .t { fill: var(--fg); font: 600 14px system-ui, sans-serif; }
+  .s { fill: var(--muted); font: 12px system-ui, sans-serif; }
+  .arrow { stroke: var(--fg); stroke-width: 1.5; fill: none; marker-end: url(#ah); }
+  .num { fill: var(--accent); font: 700 12px system-ui, sans-serif; }
+  .legend { font-size: 13px; color: var(--muted); }
+  .legend b { color: var(--new); }
+  table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+  th, td { text-align: left; vertical-align: top; padding: 8px 10px; border-bottom: 1px solid var(--line); }
+  th { color: var(--muted); font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: .04em; }
+  .wrap { overflow-x: auto; }
+  code { font: 12.5px ui-monospace, Consolas, monospace; background: var(--code-bg); padding: 1px 5px; border-radius: 4px; overflow-wrap: anywhere; }
+  pre { background: var(--code-bg); padding: 10px 12px; border-radius: 6px; overflow-x: auto; font: 12.5px/1.5 ui-monospace, Consolas, monospace; }
+  ul, ol { padding-left: 20px; } li { margin: 4px 0; }
+  .key { border-left: 3px solid var(--new); background: var(--new-soft); padding: 10px 14px; border-radius: 0 6px 6px 0; margin: 12px 0; }
+  .warn { border-left: 3px solid var(--sf); background: var(--sf-soft); padding: 10px 14px; border-radius: 0 6px 6px 0; margin: 12px 0; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px; font-size: 14px; }
+  .card h4 { margin: 0 0 4px; font-size: 14px; }
+  .card p { margin: 0; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Next POC options: #3 and #4</h1>
+  <p class="lede">Two follow-ups that build on the onboarding sample. Each one reuses approuter, XSUAA, the Destination service and SF OData, and adds one new BTP or SF concept, highlighted in <span style="color:var(--new);font-weight:600">purple</span>. Items marked <b>unverified</b> are from general knowledge and haven't been checked on this trial or tenant.</p>
+  <svg viewBox="0 0 0 0" width="0" height="0" style="position:absolute"><defs><marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" style="fill: var(--fg)"/></marker></defs></svg>
+
+  <!-- ===================== #3 ===================== -->
+  <h2>#3 Data quality checker</h2>
+  <p class="lede"><b>What it does:</b> on a schedule, it scans SF for employee records with missing or invalid data (for example a blank <code>gender</code>, which is the real gap that caused the "Mandatory value is missing for gender … userId:200543" error), creates a To-Do for the responsible HR admin, and shows a dashboard of open issues.</p>
+
+  <svg viewBox="0 0 1000 300" role="img" aria-label="Job Scheduler triggers the app, which reads SF with a technical user and creates To-Dos">
+    <rect class="box new" x="10" y="30" width="180" height="80" rx="8"/>
+    <text class="t" x="100" y="62" text-anchor="middle">Job Scheduler</text>
+    <text class="s" x="100" y="82" text-anchor="middle">e.g. every night 02:00</text>
+    <rect class="box ours" x="270" y="30" width="210" height="80" rx="8"/>
+    <text class="t" x="375" y="62" text-anchor="middle">dq-checker app</text>
+    <text class="s" x="375" y="82" text-anchor="middle">POST /jobs/run (no user!)</text>
+    <rect class="box new" x="270" y="200" width="210" height="80" rx="8"/>
+    <text class="t" x="375" y="230" text-anchor="middle">Destination</text>
+    <text class="s" x="375" y="250" text-anchor="middle">technical user</text>
+    <text class="s" x="375" y="266" text-anchor="middle">(no principal propagation)</text>
+    <rect class="box sf" x="580" y="30" width="200" height="80" rx="8"/>
+    <text class="t" x="680" y="58" text-anchor="middle">SuccessFactors</text>
+    <text class="s" x="680" y="78" text-anchor="middle">read: PerPersonal, EmpJob…</text>
+    <text class="s" x="680" y="94" text-anchor="middle">write: TodoEntryV2</text>
+    <rect class="box" x="830" y="30" width="160" height="80" rx="8"/>
+    <text class="t" x="910" y="62" text-anchor="middle">HR admin</text>
+    <text class="s" x="910" y="82" text-anchor="middle">sees To-Do + dashboard</text>
+    <path class="arrow" d="M190,70 L266,70"/><text class="num" x="228" y="60" text-anchor="middle">1 trigger</text>
+    <path class="arrow" d="M375,110 L375,196"/><text class="num" x="385" y="160">2 get token</text>
+    <path class="arrow" d="M480,70 L576,70"/><text class="num" x="528" y="60" text-anchor="middle">3 query + create</text>
+    <path class="arrow" d="M780,70 L826,70"/><text class="num" x="803" y="60" text-anchor="middle">4</text>
+  </svg>
+
+  <div class="key"><b>The big new lesson: no user is logged in.</b> The onboarding app works because a person logs in and the SAML bearer flow passes <i>their</i> identity to SF. A scheduled job has no person, so the destination has to authenticate as a <b>technical user</b> (an SF API user with RBP rights to read everyone's data). The <code>sap-successfactors-extensibility</code> service accepts a <code>technicalUser</code> parameter for this (unverified, check SAP docs), or you can create a separate destination. The endpoint the scheduler calls is secured with an XSUAA <b>client-credentials</b> token, not a user JWT.</div>
+
+  <h3>Example rules (configurable list)</h3>
+  <div class="wrap"><table>
+    <tr><th>Rule</th><th>SF query (OData v2)</th><th>To-Do goes to</th></tr>
+    <tr><td>Missing gender</td><td><code>PerPersonal?$filter=gender eq null&amp;$select=personIdExternal</code></td><td>HR admin</td></tr>
+    <tr><td>No business email</td><td><code>PerPerson?$expand=emailNav&amp;$select=…</code> then check in code that no <code>isPrimary</code> email exists</td><td>HR admin</td></tr>
+    <tr><td>Active employee with no manager</td><td><code>EmpJob?$filter=managerId eq null and emplStatus eq '&lt;active&gt;'</code></td><td>HR admin</td></tr>
+    <tr><td>Probation end date in the past</td><td><code>EmpJob?$filter=probationPeriodEndDate lt datetime'…'</code></td><td>Employee's manager</td></tr>
+  </table></div>
+  <p class="legend">Field names depend on the tenant's data model. Check them against <code>$metadata</code> on <code>apisalesdemo8</code> first.</p>
+
+  <h3>Build outline</h3>
+  <ol>
+    <li><b>Rules engine:</b> each rule is an entity, a filter and a message. Start with 2 rules.</li>
+    <li><b>Paging:</b> follow SF's <code>__next</code> link or use <code>$top/$skip</code>. This fixes the cut-off this sample has with <code>GET User</code>.</li>
+    <li><b>No duplicates:</b> before creating a To-Do, check that an open one doesn't already exist (name pattern <code>"DQ: &lt;rule&gt; (&lt;userId&gt;)"</code>), or store run results in the app's own DB.</li>
+    <li><b>Create To-Dos:</b> <code>POST TodoEntryV2</code> with category <code>41</code>, the same call that's proven to work, owner = HR admin, <code>linkUrl</code> = the employee's profile.</li>
+    <li><b>Scheduling:</b> bind the BTP Job Scheduling service and register a job that calls <code>POST /jobs/run</code>. Simpler fallback with no new service: Spring <code>@Scheduled</code> or a CAP timer. That's fine for a POC, but it has no UI, no run log, and runs on every instance.</li>
+    <li><b>Dashboard:</b> open issues per rule, last run time, and a "Run now" button.</li>
+  </ol>
+
+  <div class="grid">
+    <div class="card"><h4>New BTP skills</h4><p>Job Scheduling service, client-credentials auth, technical-user destination, (optional) own DB for run history.</p></div>
+    <div class="card"><h4>New SF skills</h4><p>Effective-dated entities (<code>PerPersonal</code>, <code>EmpJob</code>), <code>eq null</code> filters, paging, RBP for API users.</p></div>
+    <div class="card"><h4>Demo story</h4><p>"Last night the job found 37 records missing gender. Each HR owner got a To-Do with a direct link to fix it."</p></div>
+  </div>
+
+  <div class="warn"><b>Risks and checks:</b> Job Scheduling on BTP trial isn't verified, so check the trial entitlements. The technical user needs broad RBP read rights. Without deduplication you can flood people with To-Dos. Large tenants need paging and throttling.</div>
+
+  <!-- ===================== #4 ===================== -->
+  <h2>#4 Custom MDF object app</h2>
+  <p class="lede"><b>What it does:</b> a BTP app for create/read/update/delete on a custom SF object you define. Example: <b>Equipment Request</b>. An employee requests a laptop or phone, the manager approves, and IT sees the queue. The data lives in SF as an MDF object, so it shows up in SF reporting, permissions and workflows.</p>
+
+  <svg viewBox="0 0 1000 260" role="img" aria-label="Define MDF object in SF, export metadata, generate client, app does CRUD, optional SF workflow">
+    <rect class="box sf" x="10" y="30" width="200" height="80" rx="8"/>
+    <text class="t" x="110" y="58" text-anchor="middle">1. SF Admin Center</text>
+    <text class="s" x="110" y="78" text-anchor="middle">Configure Object</text>
+    <text class="s" x="110" y="94" text-anchor="middle">Definitions + RBP</text>
+    <rect class="box new" x="270" y="30" width="200" height="80" rx="8"/>
+    <text class="t" x="370" y="58" text-anchor="middle">2. $metadata</text>
+    <text class="s" x="370" y="78" text-anchor="middle">cust_EquipmentRequest</text>
+    <text class="s" x="370" y="94" text-anchor="middle">→ edmx/ → VDM / cds import</text>
+    <rect class="box ours" x="530" y="30" width="200" height="80" rx="8"/>
+    <text class="t" x="630" y="58" text-anchor="middle">3. BTP app</text>
+    <text class="s" x="630" y="78" text-anchor="middle">list / create / update</text>
+    <text class="s" x="630" y="94" text-anchor="middle">(same destination)</text>
+    <rect class="box sf" x="790" y="30" width="200" height="80" rx="8"/>
+    <text class="t" x="890" y="58" text-anchor="middle">SF stores record</text>
+    <text class="s" x="890" y="78" text-anchor="middle">reporting, RBP,</text>
+    <text class="s" x="890" y="94" text-anchor="middle">audit for free</text>
+    <rect class="box new" x="790" y="170" width="200" height="70" rx="8"/>
+    <text class="t" x="890" y="198" text-anchor="middle">4. SF workflow (optional)</text>
+    <text class="s" x="890" y="218" text-anchor="middle">manager approves in SF</text>
+    <path class="arrow" d="M210,70 L266,70"/>
+    <path class="arrow" d="M470,70 L526,70"/>
+    <path class="arrow" d="M730,70 L786,70"/>
+    <path class="arrow" d="M890,110 L890,166"/>
+  </svg>
+
+  <h3>Example object: <code>cust_EquipmentRequest</code></h3>
+  <div class="wrap"><table>
+    <tr><th>Field</th><th>Type</th><th>Notes</th></tr>
+    <tr><td><code>externalCode</code></td><td>Auto number</td><td>Key</td></tr>
+    <tr><td><code>cust_employee</code></td><td>User</td><td>Who it's for. The default is the logged-in user, through principal propagation like today.</td></tr>
+    <tr><td><code>cust_itemType</code></td><td>Picklist</td><td>Laptop / Phone / Monitor</td></tr>
+    <tr><td><code>cust_reason</code></td><td>String</td><td></td></tr>
+    <tr><td><code>cust_neededBy</code></td><td>Date</td><td></td></tr>
+    <tr><td><code>cust_status</code></td><td>Picklist</td><td>Submitted / Approved / Rejected / Fulfilled</td></tr>
+  </table></div>
+  <p class="legend">Keep it <b>not effective-dated</b> for the POC, so you don't have to manage <code>effectiveStartDate</code> in every call.</p>
+
+  <h3>Build outline</h3>
+  <ol>
+    <li><b>Define the object in SF:</b> set API visibility to <i>Editable</i>, then grant RBP permissions to the roles involved.</li>
+    <li><b>Get the metadata:</b> <code>GET /odata/v2/cust_EquipmentRequest/$metadata</code> → save to <code>edmx/</code>. Use the same VDM generator as this repo, or <code>cds import</code> in CAP.</li>
+    <li><b>Read:</b> <code>GET cust_EquipmentRequest?$filter=cust_employee eq '&lt;me&gt;'</code>, with picklist labels via <code>$expand</code> on the picklist navigation.</li>
+    <li><b>Create:</b> <code>POST cust_EquipmentRequest</code>. Generated MDF entities support normal create, so no hand-built upsert is needed. The reverse of this sample's To-Do case is unverified for this tenant.</li>
+    <li><b>Update status:</b> <code>MERGE</code> or <code>upsert</code>. Manager and IT views filter on status.</li>
+    <li><b>Optional:</b> attach an SF workflow to the object, so approval happens in SF's own inbox and the app just shows the status.</li>
+  </ol>
+
+  <div class="grid">
+    <div class="card"><h4>New SF skills</h4><p>MDF object design, picklists via OData, object API visibility, MDF RBP, (optional) workflow on MDF.</p></div>
+    <div class="card"><h4>New BTP skills</h4><p>Regenerating the client when the object changes. A good fit for CAP + Fiori elements: a CRUD UI from annotations, with little hand-written UI.</p></div>
+    <div class="card"><h4>Demo story</h4><p>"Request equipment in a modern app, approve it in SF, and it shows up in SF reports. No separate database."</p></div>
+  </div>
+
+  <div class="warn"><b>Risks and checks:</b> you need Admin rights on <code>apisalesdemo8</code> to create objects (Configure Object Definitions). After changing the object, refresh SF's metadata cache (OData API Metadata Refresh) and regenerate the client. Picklist and user-field navigation names differ per tenant, so read them from <code>$metadata</code>.</div>
+
+  <!-- ===================== compare ===================== -->
+  <h2>Side by side</h2>
+  <div class="wrap"><table>
+    <tr><th></th><th>#3 Data quality checker</th><th>#4 Custom MDF object app</th></tr>
+    <tr><td>Who triggers it</td><td>A schedule (no user)</td><td>A logged-in user</td></tr>
+    <tr><td>SF auth</td><td><b>Technical user</b> (new)</td><td>Principal propagation (same as today)</td></tr>
+    <tr><td>SF data</td><td>Reads standard EC entities, writes To-Dos</td><td>Full CRUD on your own object</td></tr>
+    <tr><td>New BTP service</td><td>Job Scheduling</td><td>None required</td></tr>
+    <tr><td>SF admin setup</td><td>API user + RBP</td><td>Object definition + RBP (+ workflow)</td></tr>
+    <tr><td>Best fit stack</td><td>Spring Boot or CAP</td><td>CAP + Fiori elements</td></tr>
+    <tr><td>Main lesson</td><td>Background jobs and technical identity on BTP</td><td>Extending SF's data model and consuming it</td></tr>
+  </table></div>
+</main>
+</body>
+</html>

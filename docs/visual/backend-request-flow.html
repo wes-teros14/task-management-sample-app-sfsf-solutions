@@ -1,0 +1,208 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Backend Request Flow</title>
+<style>
+  :root {
+    --bg: #fafaf8; --fg: #1d1d1b; --muted: #66665f; --line: #c9c9c0;
+    --card: #ffffff; --accent: #0a6ed1; --accent-soft: #e6f1fb;
+    --sf: #b8540b; --sf-soft: #fbeee3; --svc: #2f7d4f; --svc-soft: #e5f3ea;
+    --code-bg: #f1f1ec; --ok: #2f7d4f; --ok-soft: #e5f3ea;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #17181a; --fg: #e8e8e3; --muted: #a0a097; --line: #3d3e42;
+      --card: #202124; --accent: #5aa9f0; --accent-soft: #1b2c3d;
+      --sf: #f0a060; --sf-soft: #3a2817; --svc: #6cc792; --svc-soft: #193324;
+      --code-bg: #2a2b2e; --ok: #6cc792; --ok-soft: #193324;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--fg);
+    font: 15px/1.6 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  main { max-width: 1040px; margin: 0 auto; padding: 32px 16px 64px; }
+  h1 { font-size: 26px; margin: 0 0 4px; }
+  h2 { font-size: 19px; margin: 44px 0 10px; padding-top: 10px; border-top: 1px solid var(--line); }
+  h3 { font-size: 15px; margin: 0 0 4px; }
+  p.lede { color: var(--muted); margin: 0 0 8px; max-width: 75ch; }
+  nav { font-size: 14px; color: var(--muted); margin: 8px 0 0; }
+  nav a { color: var(--accent); margin-right: 12px; white-space: nowrap; }
+  svg { width: 100%; height: auto; display: block; }
+  .box { fill: var(--card); stroke: var(--line); stroke-width: 1.5; }
+  .box.ours { stroke: var(--accent); fill: var(--accent-soft); }
+  .box.sf { stroke: var(--sf); fill: var(--sf-soft); }
+  .box.svc { stroke: var(--svc); fill: var(--svc-soft); }
+  .t { fill: var(--fg); font: 600 14px system-ui, sans-serif; }
+  .s { fill: var(--muted); font: 12px system-ui, sans-serif; }
+  .arrow { stroke: var(--fg); stroke-width: 1.5; fill: none; marker-end: url(#ah); }
+  .dash { stroke: var(--svc); stroke-width: 1.5; fill: none; stroke-dasharray: 5 4; }
+  .lbl { fill: var(--accent); font: 12px ui-monospace, Consolas, monospace; }
+  .num { fill: var(--accent); font: 700 12px system-ui, sans-serif; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 12px; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px; font-size: 14px; }
+  .card.ours { border-color: var(--accent); }
+  .card.svc { border-color: var(--svc); }
+  .card p { margin: 0; }
+  .tag { display: inline-block; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); margin-bottom: 2px; }
+  ol.steps { padding-left: 0; list-style: none; counter-reset: s; }
+  ol.steps li { counter-increment: s; position: relative; padding: 8px 0 8px 40px; border-bottom: 1px solid var(--line); }
+  ol.steps li::before { content: counter(s); position: absolute; left: 0; top: 8px; width: 26px; height: 26px; border-radius: 50%;
+    background: var(--accent-soft); color: var(--accent); font-weight: 700; font-size: 13px; display: flex; align-items: center; justify-content: center; }
+  .who { font-size: 12px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
+  table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+  th, td { text-align: left; vertical-align: top; padding: 9px 10px; border-bottom: 1px solid var(--line); }
+  th { color: var(--muted); font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: .04em; }
+  code { font: 12.5px ui-monospace, Consolas, monospace; background: var(--code-bg); padding: 1px 5px; border-radius: 4px; overflow-wrap: anywhere; }
+  .wrap { overflow-x: auto; }
+  ul { padding-left: 20px; } li { margin: 4px 0; }
+  .tokens { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 12px; }
+  .ok { border-left: 3px solid var(--ok); padding: 10px 14px; background: var(--ok-soft); border-radius: 0 6px 6px 0; margin: 12px 0; }
+  .layers { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; font-size: 13.5px; }
+  .layers span.l { background: var(--card); border: 1px solid var(--line); border-radius: 6px; padding: 6px 10px; }
+  .layers span.a { color: var(--muted); }
+</style>
+</head>
+<body>
+<main>
+  <h1>Backend request flow</h1>
+  <p class="lede">How the Employee Onboarding sample works, and how the BTP pieces around it fit together. Everything here is from the code or was checked against the live deployment on 2026-10-23.</p>
+  <nav><a href="#what">What it is</a><a href="#btp">BTP building blocks</a><a href="#flow">Request flow</a><a href="#steps">One request, step by step</a><a href="#tokens">The two tokens</a><a href="#inside">Inside the Java app</a><a href="#map">Endpoint map</a><a href="#verified">Verified</a><a href="#watch">Things to know</a></nav>
+
+  <h2 id="what">What the app is</h2>
+  <p>This is SAP's sample "Employee Onboarding" extension for SuccessFactors, running on BTP Cloud Foundry. A manager picks an employee, and the app creates an SF To-Do (<code>TodoEntryV2</code>, category <code>41</code>) for that person, owned by the manager. The manager can then list, complete or delete those To-Dos. <b>The app has no database of its own</b>: SF is the only store. It is a proof of concept.</p>
+  <p>The people you can pick are <b>existing SF users</b>, since <code>GET User</code> has no filter. "Onboarding" is only the label on the To-Do, which points at the employee through <code>subjectId</code>. The app never reads SF Onboarding or new-hire data.</p>
+
+  <h2 id="btp">BTP building blocks</h2>
+  <p class="lede">The pieces deployed into the Cloud Foundry space (org <code>63f955d7trial</code>, space <code>dev</code>). Apps are running code. Service instances are managed BTP services. A <b>binding</b> connects an app to a service and puts that service's credentials into the app's <code>VCAP_SERVICES</code> environment variable.</p>
+  <div class="grid">
+    <div class="card ours"><span class="tag">App</span><h3>approuter-task-management</h3><p>Node <code>@sap/approuter</code>. It is the only public entry point. It logs the user in through XSUAA, keeps the session, and forwards every request to the Java app with the user's JWT attached (<code>xs-app.json</code>, <code>forwardAuthToken: true</code>).</p></div>
+    <div class="card ours"><span class="tag">App</span><h3>task-management</h3><p>Spring Boot jar on <code>java_buildpack</code> (Java 11). It serves the SAPUI5 UI and the <code>/v1/*</code> REST API, and calls SF.</p></div>
+    <div class="card svc"><span class="tag">Service · bound to both apps</span><h3>xsuaa</h3><p>BTP's OAuth server. It issues the user's JWT after login. The Java app uses the binding to check that the JWT signature is genuine.</p></div>
+    <div class="card svc"><span class="tag">Service · bound to Java app</span><h3>destination</h3><p>BTP's address book for remote systems. It stores the SF URL and auth method, and hands out ready-to-use SF tokens at runtime.</p></div>
+    <div class="card svc"><span class="tag">Service · bound to Java app</span><h3>sap-successfactors-extensibility</h3><p>Links BTP to the registered SF system ("SFSF Demo"). Creating it auto-creates a destination with the same name, using <code>OAuth2SAMLBearerAssertion</code>.</p></div>
+  </div>
+
+  <h2 id="flow">How a request travels</h2>
+  <svg viewBox="0 0 1000 330" role="img" aria-label="Browser to approuter to Java app; Java app asks Destination service, which gets an SF token; Java app calls SuccessFactors">
+    <defs><marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" style="fill: var(--fg)"/></marker></defs>
+    <rect class="box" x="10" y="40" width="150" height="80" rx="8"/>
+    <text class="t" x="85" y="74" text-anchor="middle">Browser</text>
+    <text class="s" x="85" y="94" text-anchor="middle">SAPUI5 app</text>
+
+    <rect class="box ours" x="230" y="40" width="170" height="80" rx="8"/>
+    <text class="t" x="315" y="70" text-anchor="middle">approuter</text>
+    <text class="s" x="315" y="90" text-anchor="middle">login, session,</text>
+    <text class="s" x="315" y="106" text-anchor="middle">forwards JWT</text>
+
+    <rect class="box ours" x="470" y="40" width="190" height="80" rx="8"/>
+    <text class="t" x="565" y="70" text-anchor="middle">task-management</text>
+    <text class="s" x="565" y="90" text-anchor="middle">Spring Boot + Cloud SDK</text>
+    <text class="s" x="565" y="106" text-anchor="middle">validates JWT</text>
+
+    <rect class="box sf" x="770" y="40" width="210" height="80" rx="8"/>
+    <text class="t" x="875" y="70" text-anchor="middle">SuccessFactors</text>
+    <text class="s" x="875" y="90" text-anchor="middle">/odata/v2 + /oauth/token</text>
+    <text class="s" x="875" y="106" text-anchor="middle">TodoEntryV2, User, Photo</text>
+
+    <rect class="box svc" x="230" y="220" width="170" height="80" rx="8"/>
+    <text class="t" x="315" y="250" text-anchor="middle">XSUAA</text>
+    <text class="s" x="315" y="270" text-anchor="middle">issues user JWT</text>
+
+    <rect class="box svc" x="470" y="220" width="190" height="80" rx="8"/>
+    <text class="t" x="565" y="250" text-anchor="middle">Destination service</text>
+    <text class="s" x="565" y="270" text-anchor="middle">OAuth2SAMLBearerAssertion</text>
+
+    <path class="arrow" d="M160,80 L226,80"/>
+    <text class="num" x="193" y="70" text-anchor="middle">1</text>
+    <path class="dash" d="M315,120 L315,216"/>
+    <text class="num" x="325" y="172">2 login</text>
+    <path class="arrow" d="M400,80 L466,80"/>
+    <text class="num" x="433" y="70" text-anchor="middle">3 JWT</text>
+    <path class="arrow" d="M565,120 L565,216"/>
+    <text class="num" x="575" y="160">4 get destination</text>
+    <text class="s" x="575" y="176">(sends user JWT)</text>
+    <path class="arrow" d="M660,250 C740,250 790,190 830,124"/>
+    <text class="num" x="720" y="222">5 SAML → SF token</text>
+    <path class="arrow" d="M660,80 L766,80"/>
+    <text class="num" x="713" y="70" text-anchor="middle">6 OData</text>
+  </svg>
+
+  <h2 id="steps">One request, step by step: "New Request" for Barbara Kent</h2>
+  <ol class="steps">
+    <li><span class="who">Browser</span><br>The UI sends <code>POST /v1/onboardings</code> with the selected user (<code>userId 100113</code>) to the approuter URL.</li>
+    <li><span class="who">approuter + XSUAA</span><br>With no session, the user is redirected to XSUAA to log in. Afterwards the approuter stores the user's JWT in the session.</li>
+    <li><span class="who">approuter</span><br>It forwards the request to <code>token-destination</code>, which is the Java app's URL from <code>manifest.yml</code>, with <code>Authorization: Bearer &lt;JWT&gt;</code>.</li>
+    <li><span class="who">Java · SecurityConfiguration</span><br>Spring Security checks the JWT against the <code>xsuaa</code> binding and rejects the request if it's missing or invalid. <code>UserInfoImpl</code> reads the logon name (<code>davidm.epiuse</code>).</li>
+    <li><span class="who">Java · ToDoEntityManagerImpl</span><br>It builds the To-Do: name <code>"Barbara Kent (100113)"</code>, status 2, category 41, <code>subjectId</code> 100113, due today + 7 days, owner <code>userNav → User('davidm.epiuse')</code>.</li>
+    <li><span class="who">Java · DestinationProvider → Destination service</span><br>It reads <code>VCAP_SERVICES</code> to find the extensibility service's name, then asks the Destination service for the destination with that name, passing the user's JWT.</li>
+    <li><span class="who">Destination service → SF</span><br>Because the auth method is <code>OAuth2SAMLBearerAssertion</code>, it builds a SAML assertion that says "this is davidm.epiuse" and exchanges it at SF's <code>/oauth/token</code> for an SF access token <b>for that user</b>. This is principal propagation.</li>
+    <li><span class="who">Java · Cloud SDK (VDM)</span><br>It sends <code>POST https://apisalesdemo8.successfactors.com/odata/v2/TodoEntryV2</code> with the SF token. SF creates the entry (ID 257507) and the app returns <code>201</code>.</li>
+  </ol>
+
+  <h2 id="tokens">The two tokens (the core BTP idea)</h2>
+  <div class="tokens">
+    <div class="card svc"><span class="tag">Token 1 · BTP side</span><h3>XSUAA JWT</h3><p>Proves to the <b>Java app</b> who the user is. It's issued by XSUAA at login and carried by the approuter. SF never sees it.</p></div>
+    <div class="card"><span class="tag">Token 2 · SF side</span><h3>SF OAuth access token</h3><p>Proves to <b>SuccessFactors</b> who the user is. The Destination service gets it by exchanging a SAML assertion built from Token 1. The app never handles SF passwords or keys.</p></div>
+  </div>
+  <p>Because both tokens name the same person, <b>SF permissions (RBP) apply per user</b>, and the app's <code>userId eq '&lt;me&gt;'</code> filter works. The XSUAA logon name has to equal the SF <code>userId</code>, which it does here: <code>davidm.epiuse</code>.</p>
+
+  <h2 id="inside">Inside the Java app</h2>
+  <div class="layers">
+    <span class="l"><code>rest/*Controller</code></span><span class="a">→</span>
+    <span class="l"><code>services/*Manager</code> (impl)</span><span class="a">→</span>
+    <span class="l">VDM services (<code>DefaultToDoEntityService</code>, <code>DefaultUserService</code>, <code>DefaultPhotoService</code>)<br>or <code>CustomODataToDoEntryServiceImpl</code> for upsert</span><span class="a">→</span>
+    <span class="l"><code>.executeRequest(destinationProvider.getDestination())</code></span>
+  </div>
+  <ul>
+    <li><b>VDM</b>: typed Java classes generated at build time from <code>edmx/ToDoEntity.edmx</code>, <code>User.edmx</code>, <code>Photo.edmx</code> and <code>upsert.edmx</code> into <code>target/vdm</code>.</li>
+    <li><b>Upsert is hand-built</b>: the generated classes don't cover the <code>upsert</code> function import, so <code>CustomODataToDoEntryServiceImpl</code> builds the request with Gson and an <code>ODataRequestAction</code>.</li>
+  </ul>
+
+  <h2 id="map">Endpoint map: app call → SF OData v2</h2>
+  <div class="wrap">
+  <table>
+    <tr><th>App endpoint</th><th>SF OData v2 call</th><th>Notes</th></tr>
+    <tr><td><code>GET /v1/onboardings</code></td>
+        <td><code>GET TodoEntryV2?$select=…&amp;$filter=categoryId eq '41' and userId eq '&lt;me&gt;'</code></td>
+        <td>No status filter, so active (2) and completed (3) both come back. Java then drops names that don't match <code>Name (id)</code>.</td></tr>
+    <tr><td><code>POST /v1/onboardings</code></td>
+        <td><code>POST TodoEntryV2</code></td>
+        <td>Sends <code>todoEntryName</code>="Full Name (id)", <code>status</code>=2, <code>categoryId</code>="41", <code>subjectId</code>=selected employee, <code>dueDate</code>=now + 7 days, <code>linkUrl</code>="https://sap.com", <code>userNav</code>→<code>User('&lt;me&gt;')</code>.</td></tr>
+    <tr><td><code>PATCH /v1/onboardings/{id}/complete</code></td>
+        <td><code>POST upsert</code> body <code>{"__metadata":{"uri":"TodoEntryV2(&lt;id&gt;M)"},"status":3}</code></td>
+        <td>Fails unless every upsert result is <code>OK</code>.</td></tr>
+    <tr><td><code>DELETE /v1/onboardings/{id}</code></td>
+        <td><code>DELETE TodoEntryV2(&lt;id&gt;M)</code></td>
+        <td>Hard delete.</td></tr>
+    <tr><td><code>GET /v1/users</code></td>
+        <td><code>GET User?$select=defaultFullName,email,userId,title,department</code></td>
+        <td>Has no filter and no paging code.</td></tr>
+    <tr><td><code>GET /v1/users/current</code>, <code>/{userId}</code></td>
+        <td><code>GET User('&lt;id&gt;')</code> + <code>GET Photo(photoType=1,userId='&lt;id&gt;')</code></td>
+        <td>A 404 on either call is ignored.</td></tr>
+    <tr><td><code>GET /v1/users/{userId}/photo</code></td>
+        <td><code>GET Photo(photoType=1,userId='&lt;id&gt;')</code></td>
+        <td>photoType 1 = live profile photo.</td></tr>
+  </table>
+  </div>
+
+  <h2 id="verified">Verified in this deployment (2026-10-23)</h2>
+  <div class="ok">
+    <ul>
+      <li><b>The write reached SF</b>: Postman <code>GET TodoEntryV2?$filter=categoryId eq '41' and subjectId eq '100113'</code> returned <code>todoEntryId 257507</code>, <code>userId "davidm.epiuse"</code>, <code>status 2</code>, and due date <code>1793318400000</code> = 30 Oct 2026, which is creation date + 7.</li>
+      <li><b>Destination auth</b> is <code>OAuth2SAMLBearerAssertion</code> (checked in the BTP cockpit).</li>
+      <li><b>SF system</b>: <code>apisalesdemo8.successfactors.com</code>, the only system in use.</li>
+    </ul>
+  </div>
+
+  <h2 id="watch">Things to know</h2>
+  <ul>
+    <li><b>Completed requests stay in the list on purpose</b>: the UI shows them as "Completed" and hides the ✓ button (<code>App.controller.js:180</code>, <code>:213</code>).</li>
+    <li><b>User list is cut off</b>: <code>GET User</code> has no paging code, so only the first page SF sends back is returned.</li>
+    <li><b>Not on David's SF home page yet</b>: To-Do 257507 exists in SF, but it doesn't show in David's SF UI. The cause is still unknown. Possibilities: category 41 isn't shown on the home page, or the home page is caching. Still under investigation.</li>
+  </ul>
+</main>
+</body>
+</html>

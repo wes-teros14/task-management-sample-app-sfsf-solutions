@@ -80,7 +80,7 @@ When I correct you or you catch yourself making a mistake, before continuing, ad
 
 ## LESSONS
 
-* (Claude adds rules here)
+* Before calling backend behaviour a gap/bug, check how the frontend consumes it (e.g. completed ToDos are listed on purpose; UI shows "Completed").
 
 ## .env Files
 

@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Project Q&amp;A Log</title>
+<style>
+  :root { --bg: #fafaf8; --fg: #1d1d1b; --muted: #66665f; --line: #d8d8d0; --code-bg: #f1f1ec;
+          --amber: #b7791f; --amber-soft: #fdf3e1; --accent: #0a6ed1; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #17181a; --fg: #e8e8e3; --muted: #a0a097; --line: #3d3e42; --code-bg: #2a2b2e;
+            --amber: #e8b04f; --amber-soft: #3a2d14; --accent: #5aa9f0; }
+  }
+  body { margin: 0; background: var(--bg); color: var(--fg); font: 15px/1.6 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  main { max-width: 820px; margin: 0 auto; padding: 32px 16px 64px; }
+  h1 { font-size: 26px; margin: 0 0 16px; }
+  h2 { font-size: 19px; margin: 40px 0 8px; padding-top: 8px; border-top: 1px solid var(--line); }
+  nav ul { padding-left: 20px; } a { color: var(--accent); }
+  .qa { margin: 16px 0; }
+  .q { font-weight: 600; margin: 0 0 4px; }
+  .a { margin: 0; }
+  code { font: 13px ui-monospace, Consolas, monospace; background: var(--code-bg); padding: 1px 5px; border-radius: 4px; overflow-wrap: anywhere; }
+  .correction { border-left: 4px solid var(--amber); background: var(--amber-soft); padding: 10px 14px; border-radius: 0 6px 6px 0; }
+  .correction::before { content: "Correction"; display: block; font-weight: 700; color: var(--amber); font-size: 12px; text-transform: uppercase; letter-spacing: .05em; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Project Q&amp;A log</h1>
+  <nav><ul>
+    <li><a href="#overview">What the app is</a></li>
+    <li><a href="#backend">Backend and SuccessFactors APIs</a></li>
+    <li><a href="#build-deploy">Build and deploy</a></li>
+  </ul></nav>
+
+  <h2 id="overview">What the app is</h2>
+  <div class="qa">
+    <p class="q">What is this app?</p>
+    <p class="a">It is SAP's sample "Employee Onboarding" side-by-side extension for SuccessFactors, running on BTP Cloud Foundry. A manager picks an employee, and the app creates an SF To-Do (<code>TodoEntryV2</code>, category <code>41</code>) owned by the manager. The manager can then list, complete or delete those requests. The app has no database of its own: SF is the only store. It is a proof of concept.</p>
+  </div>
+
+  <div class="qa">
+    <p class="q">Why are the people in the "New Request" list already hired?</p>
+    <p class="a">By design. <code>GET /v1/users</code> calls <code>GET /odata/v2/User</code> with no filter, so it returns every existing SF user (<code>UserManagerImpl.getUsersProfiles</code>). "Onboarding" is only the label on the To-Do (<code>subjectId</code> = the picked user). The app never reads SF Onboarding or new-hire data.</p>
+  </div>
+
+  <div class="qa">
+    <p class="q">Where is the app in the repo, and what language is it?</p>
+    <p class="a">It has three parts. The <b>backend</b> is Java 8 source (built and run on Java 11) with Spring Boot 2.2.1 and SAP Cloud SDK, in <code>task-management-app/src/main/java/com/sap/core/extensions/taskmanagement/</code>. The <b>UI</b> is SAPUI5, written in JavaScript with XML views, in <code>task-management-app/src/main/resources/static/</code>, and the Spring Boot jar serves it. The <b>approuter</b> is Node.js config only (<code>approuter/package.json</code>, <code>xs-app.json</code>), with no code of its own. BTP wiring is in <code>manifest.yml</code>, <code>xsuaa.json</code> and <code>sap-successfactors-extensibility.json</code>. The SF API definitions are in <code>task-management-app/edmx/</code>.</p>
+  </div>
+
+  <h2 id="backend">Backend and SuccessFactors APIs</h2>
+  <div class="qa">
+    <p class="q">How does the app log in to SF, and how is it the right user?</p>
+    <p class="a">There are two tokens. The XSUAA JWT proves the user to the Java app. The Destination service (<code>OAuth2SAMLBearerAssertion</code>, confirmed in the cockpit) turns that JWT into a SAML assertion and exchanges it at SF <code>/oauth/token</code> for an SF token for the same user. This is principal propagation. SF permissions apply per user, and the XSUAA logon name must equal the SF <code>userId</code> (here <code>davidm.epiuse</code>).</p>
+  </div>
+  <div class="qa">
+    <p class="q">Did "New Request" really write to SF? It's not on David's SF home page.</p>
+    <p class="a">Yes. Postman <code>GET TodoEntryV2?$filter=categoryId eq '41' and subjectId eq '100113'</code> on <code>apisalesdemo8</code> returned ID <code>257507</code>, <code>userId "davidm.epiuse"</code>, <code>status 2</code>, due 30 Oct 2026. Why it doesn't show in the SF UI is still open (2026-10-23). The suspected causes are category 41 not being shown on the home page, or caching.</p>
+  </div>
+  <div class="qa">
+    <p class="q">How does the backend talk to SF?</p>
+    <p class="a">Each REST call in <code>/v1/*</code> maps to one SF OData v2 call, made with SAP Cloud SDK typed classes (VDM) generated from <code>task-management-app/edmx/*.edmx</code>. The SF URL and credentials come from the Destination service, through the <code>sap-successfactors-extensibility</code> binding. "Complete" uses the <code>upsert</code> function import, which is hand-built with Gson because the VDM doesn't cover it, with body <code>{"__metadata":{"uri":"TodoEntryV2(&lt;id&gt;M)"},"status":3}</code>. The current user's XSUAA logon name is used directly as the SF <code>userId</code>. The full endpoint-to-OData table is in <code>docs/visual/backend-request-flow.html</code>.</p>
+  </div>
+  <div class="qa">
+    <p class="q">Does the onboarding list show completed requests?</p>
+    <p class="a">Yes. <code>GET /v1/onboardings</code> filters only on <code>categoryId eq '41'</code> and the owner <code>userId</code>, not on status (<code>ToDoEntityManagerImpl.getAllToDoQueryHelperFilteredByCategory</code>). It then drops entries whose name doesn't match <code>Name (id)</code>.</p>
+    <div class="correction">The first answer called this a "thing to watch", as if it were a gap. That was wrong. It is intentional: the UI marks status-3 entries as "Completed" and hides the ✓ action (<code>static/controller/App.controller.js:180</code>, <code>:213</code>). Lesson: read the frontend before calling backend behaviour a problem.</div>
+  </div>
+
+  <div class="qa">
+    <p class="q">Where do I change the To-Do category ("event type")?</p>
+    <p class="a">Change one constant: <code>ToDoEntityManagerImpl.java:32</code> <code>GENERIC_INTELLIGENT_SERVICES_CATEGORY</code>. It drives both create (line 122 sets <code>categoryId</code>) and list (line 150 <code>$filter=categoryId eq '&lt;value&gt;'</code>). Complete and delete use only the To-Do ID. Side effects: To-Dos with the old category disappear from the list (<code>categoryId</code> is <code>sap:updatable="false"</code> in <code>ToDoEntity.edmx:61</code>, so they can't be moved), and method names saying "GenericIntelligentServices" become misleading. Not verified: whether SF allows API creation of categories other than 41. On 2026-10-23 the value was changed to <code>"19"</code> locally (not yet deployed or tested). To redeploy: <code>mvn clean install</code> then <code>cf push task-management --vars-file vars.yml</code>.</p>
+  </div>
+
+  <h2 id="build-deploy">Build and deploy</h2>
+  <div class="qa">
+    <p class="q">Why did the build fail on JDK 26, and why did the deploy fail on <code>sap_java_buildpack</code>?</p>
+    <p class="a">On JDK 26, Lombok didn't run, which caused missing-getter errors in the generated VDM. The cause is the old Lombok that Spring Boot 2.2.1 pins, plus JDK 23+ no longer running annotation processors by default. Building with JDK 11 fixed it. On the CF trial landscape (ap21), <code>sap_java_buildpack</code> no longer exists, so <code>manifest.yml</code> now uses <code>java_buildpack</code> with <code>JBP_CONFIG_OPEN_JDK_JRE: '{ jre: { version: 11.+ } }'</code>. Verified on 2026-10-23.</p>
+  </div>
+  <div class="qa">
+    <p class="q">Will this type of app stop working on April 12, 2027?</p>
+    <p class="a">No. The deadline is for the <b>cflinuxfs4 stack</b>, the Ubuntu 22.04 base image the app runs on. It isn't about the app type. From the <code>cf push</code> warning on 2026-10-23: new pushes on cflinuxfs4 end April 12, 2027, and restage/update ends May 10, 2027, but "at no point in time is the availability of your running application at risk". The fix is to deploy on <code>cflinuxfs5</code> (e.g. <code>stack: cflinuxfs5</code> in <code>manifest.yml</code>). <code>java_buildpack</code> and <code>nodejs_buildpack</code> both exist for cflinuxfs5 here. Not yet tested: the cflinuxfs5 <code>java_buildpack</code> is v5.0.7, a newer major version, and the Java 11 setting may need adjusting.</p>
+    <div class="correction">The POC idea list (idea #7) bundled "rebuild in CAP" with the stack deadline, which made it sound like the app type was ending. They are separate. A stack move is enough to keep deploying, and CAP is optional.</div>
+  </div>
+  <div class="qa">
+    <p class="q">Can we still build Java / Spring Boot apps like this one?</p>
+    <p class="a">Yes. Java and Spring Boot on CF is fully supported. For a new app, use current versions: Spring Boot 3, Java 17/21 and SAP Cloud SDK 5, instead of this sample's Spring Boot 2.2.1 / Cloud SDK 3.46 / Java 8 source. Spring Boot 3 runs on <code>sap_java_buildpack_jakarta</code> or <code>java_buildpack</code>. The architecture stays the same: approuter, XSUAA, Destination, Cloud SDK.</p>
+  </div>
+  <div class="qa">
+    <p class="q">What's the advantage of recreating this in CAP, and does it work on BTP Trial?</p>
+    <p class="a">CAP turns the SF EDMX into a CDS model (<code>cds import</code>) and calls SF through the same destination, so you write much less code. It also runs locally with a mocked SF (<code>cds watch</code>), which this app can't do. Auth is declarative (<code>@requires</code>/<code>@restrict</code>), <code>cds add xsuaa,approuter,mta</code> generates the BTP config, and it can generate a Fiori elements UI from annotations. Downsides: you have to learn CDS, and the SF <code>upsert</code> function import still needs a custom handler. Trial: CAP is open-source libraries, so it runs on trial CF. Business Application Studio and HANA Cloud are available on trial (based on general knowledge, not checked in this subaccount). SQLite is enough if no local data is needed.</p>
+  </div>
+  <div class="qa">
+    <p class="q">Where can we find a CAP-based guide?</p>
+    <p class="a">Start with the official docs at <code>https://cap.cloud.sap/docs/</code> (mirror <code>cap.js.org</code>), especially "Consuming Services" (<code>/docs/guides/services/consuming-services</code>) for <code>cds import</code> of SF EDMX. The closest sample to this project is <code>https://github.com/SAP-samples/cloud-sf-extension-cap-sample</code>, a CAP-based SF side-by-side extension (repo existence confirmed with <code>git ls-remote</code> on 2026-10-23; contents not reviewed). Other samples: <code>https://cap.js.org/get-started/samples</code>.</p>
+  </div>
+  <div class="qa">
+    <p class="q">Do I need a new repo to build a new extension app?</p>
+    <p class="a">It isn't required by BTP, but a separate repo is recommended for an independent app, because it gets its own build, version history and deploy cycle. What has to be different in BTP is the CF app names and routes in <code>manifest.yml</code>, and the <code>xsappname</code> in <code>xsuaa.json</code> (this repo uses <code>extension-app</code>, which must be unique in the subaccount). The <code>destination</code> and <code>sap-successfactors-extensibility</code> instances can be shared by binding them to the new app too. Use a single repo (MTA/monorepo) only when the apps are released together.</p>
+  </div>
+</main>
+</body>
+</html>
