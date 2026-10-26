@@ -1,6 +1,6 @@
 # Project memory
 
-Last updated: 2026-10-24
+Last updated: 2026-10-26
 
 ## Purpose
 - Fork of SAP sample `SAP/task-management-sample-app-sfsf-solutions`; used to learn BTP + SF side-by-side extensions, then build further POCs.
@@ -40,6 +40,7 @@ Last updated: 2026-10-24
 - `docs/visual/poc-ideas-data-quality-and-mdf.html`: detail for next POC options #3/#4.
 
 ## Future direction
-- Next POC candidates (ranked): #1 real onboarding tracker, #3 data-quality checker (Job Scheduler), #4 custom MDF object app. Others: manager dashboard, event-driven (Event Mesh), AI assist, CAP rebuild.
+- Chosen next POC (2026-10-26): #4 custom MDF object app ("Equipment Request"), CAP + Fiori elements, in its own folder `C:\1Work_Files\equipment-request-cap` (own CLAUDE.md, memory, spec). This repo stays as reference.
+- Remaining candidates: #1 real onboarding tracker, #3 data-quality checker (Job Scheduler), manager dashboard, event-driven (Event Mesh), AI assist, CAP rebuild.
 - New apps: Spring Boot 3 / Java 17-21 / Cloud SDK 5, or CAP (works on trial). CAP reference: github.com/SAP-samples/cloud-sf-extension-cap-sample (exists; not reviewed).
 - New app on same subaccount needs unique CF app names/routes and unique `xsappname` (current: `extension-app`); destination + extensibility instances can be shared.

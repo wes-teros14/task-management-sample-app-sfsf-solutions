@@ -99,6 +99,10 @@
     <p class="q">Do I need a new repo to build a new extension app?</p>
     <p class="a">It isn't required by BTP, but a separate repo is recommended for an independent app, because it gets its own build, version history and deploy cycle. What has to be different in BTP is the CF app names and routes in <code>manifest.yml</code>, and the <code>xsappname</code> in <code>xsuaa.json</code> (this repo uses <code>extension-app</code>, which must be unique in the subaccount). The <code>destination</code> and <code>sap-successfactors-extensibility</code> instances can be shared by binding them to the new app too. Use a single repo (MTA/monorepo) only when the apps are released together.</p>
   </div>
+  <div class="qa">
+    <p class="q">For POC #4 (Equipment Request MDF app), what are the pros and cons of CAP + Fiori elements vs Spring Boot + UI5?</p>
+    <p class="a"><b>CAP + Fiori elements:</b> much less code (<code>cds import</code> of the EDMX, UI generated from annotations), a local run with a mocked SF (<code>cds watch</code>), and declarative auth. It is SAP's current recommended path, and Node v22 is already installed. Cons: Fiori elements edit screens need drafts, which need a database even when SF stores the data (workaround: in-memory SQLite). Delegating to SF needs custom handlers, <code>$expand</code> and value help across the remote service are limited, and the UI is opinionated. <b>Spring Boot 3 + UI5:</b> it reuses this repo's proven pattern (Cloud SDK, destination, principal propagation), gives full control and has no draft/DB issue. Cons: every controller, DTO, view and value help is written by hand, there is no local run without SF, and it needs JDK 17+ (only JDK 11 is set up here). Recommendation (2026-10-26): CAP for a one-object CRUD POC. Spring Boot if a custom UI or the lowest risk matters more. The draft/DB point and remote <code>$expand</code> limits are from general CAP knowledge, not yet tested here.</p>
+  </div>
 </main>
 </body>
 </html>
